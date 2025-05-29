@@ -77,8 +77,6 @@ test_font = pygame.font.Font("font/FlappyBirdRegular-9Pq0.ttf", 50)
 pipe = pygame.image.load('graphics/green.png').convert_alpha()
 pipe_flip = pygame.transform.rotate(pipe, 180)
 
-
-
 # -------------------- GAME STATE --------------------
 game_active = False
 start_time = 0
@@ -87,10 +85,11 @@ score = 0
 # Initial pipe position
 pipe_x_pos = 800  # Start just off the right edge
 pipe_y_pos = Pipe_Genreation()
+pipe_gap = 10 - pipe_y_pos
 
-# -------------------- NEW: PIPE RECT --------------------
+# -------------------- PIPE RECT --------------------
 pipe_rect = pipe.get_rect(topleft=(pipe_x_pos, pipe_y_pos))
-
+pipe_flip_rect = pipe_flip.get_rect(topleft = (pipe_x_pos , pipe_gap))
 
 # -------------------- SOUND SETUP --------------------
 bg_music = [
@@ -114,6 +113,9 @@ intro_bird_img = pygame.image.load("graphics/Player/Flappy_Bird_Bird_Frame_#1.pn
 intro_bird_img = pygame.transform.rotozoom(intro_bird_img, 0, 2.5)
 intro_bird_rect = intro_bird_img.get_rect(center=(400, 200))
 
+# -------------------- HITBOX TOGGLE --------------------
+show_hitboxes = False
+
 # -------------------- GAME LOOP --------------------
 while True:
     for event in pygame.event.get():
@@ -121,16 +123,20 @@ while True:
             pygame.quit()
             exit()
 
-        if not game_active:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                game_active = True
-                start_time = int(pygame.time.get_ticks() / 1000)
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r:
+                show_hitboxes = not show_hitboxes  # Toggle hitboxes on/off
 
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_e:
-            for sound in bg_music:
-                sound.stop()
-            current_song = random.choice(bg_music)
-            current_song.play(loops=-1)
+            if not game_active:
+                if event.key == pygame.K_SPACE:
+                    game_active = True
+                    start_time = int(pygame.time.get_ticks() / 1000)
+
+            if event.key == pygame.K_e:
+                for sound in bg_music:
+                    sound.stop()
+                current_song = random.choice(bg_music)
+                current_song.play(loops=-1)
 
     # -------------------- ACTIVE GAME --------------------
     if game_active:
@@ -140,21 +146,30 @@ while True:
         player.draw(screen)
         player.update()
 
-        # Make the pipe move from right to left
+        # Move pipe from right to left
         pipe_x_pos -= 4
-        pipe_gap = 10 - pipe_y_pos
 
-        # Update the rect position to match the pipe's new position
+        # Update rect positions
         pipe_rect.topleft = (pipe_x_pos, pipe_y_pos)
+        pipe_flip_rect.topleft = (pipe_x_pos , pipe_gap)
 
-        screen.blit(pipe, (pipe_x_pos, pipe_y_pos))
-        screen.blit(pipe_flip, (pipe_x_pos , pipe_gap))
+        screen.blit(pipe, pipe_rect)
+        screen.blit(pipe_flip, pipe_flip_rect)
 
-        # When pipe goes off the screen, reset to the right and randomize y
+        # Draw red rects only if toggled on
+        if show_hitboxes:
+            pygame.draw.rect(screen, (255, 0, 0), player.sprite.rect, 3)
+            pygame.draw.rect(screen, (255, 0, 0), pipe_rect, 3)
+            pygame.draw.rect(screen, (255, 0, 0), pipe_flip_rect, 3)
+
+        # Reset pipe when off screen
         if pipe_x_pos < -300:
             pipe_x_pos = 800
             pipe_y_pos = Pipe_Genreation()
-            pipe_rect.topleft = (pipe_x_pos, pipe_y_pos)  # Update rect again here
+            pipe_rect.topleft = (pipe_x_pos, pipe_y_pos)
+
+        if player.sprite.rect.colliderect(pipe_flip_rect) or player.sprite.rect.colliderect(pipe_rect):
+            print("Player collided with pipe!")
 
     # -------------------- INACTIVE GAME (INTRO / GAME OVER) --------------------
     else:
